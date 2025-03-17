@@ -3,21 +3,22 @@ from dash import dcc, html, Input, Output, State
 import base64
 from PIL import Image
 import io
+import requests
 
-# Initialize Dash application
+# Инициализация приложения Dash
 app = dash.Dash(__name__)
 
-# Function to calculate the total salary
+# Функция для расчета общей стоимости
 def calculate_office_salary(num_workers, avg_salary, office_price):
     total_salary = num_workers * avg_salary
     total_office_salary = total_salary + office_price
     return total_salary, total_office_salary
 
-# Function to calculate the extraction cost
+# Функция для расчета стоимости добычи
 def extraction_cost(quarry_name, mineral_type, tonnage, extraction_dates, num_workers, work_type, equipment, total_salary, total_office_salary):
     extraction_cost = 0
 
-    # Type of mineral
+    # Вид полезного ископаемого
     if "буровой станок" in equipment:
         extraction_cost += 500000
     if "экскаваторы" in equipment:
@@ -29,7 +30,7 @@ def extraction_cost(quarry_name, mineral_type, tonnage, extraction_dates, num_wo
     if "шахтные подъемники" in equipment:
         extraction_cost += 500000
 
-    # Type of work
+    # Вид работ
     if work_type == "поиск-розыскные работы":
         extraction_cost += 100000
     if work_type == "добыча полезных ископаемых в карьере":
@@ -37,28 +38,30 @@ def extraction_cost(quarry_name, mineral_type, tonnage, extraction_dates, num_wo
     if work_type == "добыча полезных ископаемых в шахте":
         extraction_cost += 500000
 
-    # Add the total salary and office price
+    # Сумма зарплаты и цены офиса
     extraction_cost += total_salary + total_office_salary
 
     return extraction_cost
 
-# Load the image to display in the app
-def encode_image(image_path):
-    img = Image.open(image_path)
+# Загружаем изображение для отображения в приложении
+def encode_image(image_url):
+    # Скачиваем изображение из интернета
+    response = requests.get(image_url)
+    img = Image.open(io.BytesIO(response.content))  # Открываем изображение как байты
     img_byte_array = io.BytesIO()
     img.save(img_byte_array, format='PNG')
     return base64.b64encode(img_byte_array.getvalue()).decode('utf-8')
 
-# Convert image to base64 to use in the app
+# Преобразование изображений в base64 для использования в приложении
 image_data = encode_image("https://raw.githubusercontent.com/AleksandraBabkina/Mineral_calculation/main/Mineral.jpg")
 
-# Create app layout
+# Создаем layout приложения
 app.layout = html.Div([
     html.H1("Calculation of the extraction cost of mineral mass"),
 
     dcc.Textarea(
         id='quarry_name',
-        value="Organization name - LLC 'Landshaft', TIN - 6168107763, OGRN - 1196196028742, Legal address - 344091, Rostov region, city of Rostov-on-Don, Kashirskaya St., 9/53a, office 321",
+        value="Company Name - LLC 'Landshaft', TIN - 6168107763, OGRN - 1196196028742, Legal address - 344091, Rostov Region, Rostov-on-Don, Kashirskaya st., 9/53a, office 321",
         style={'width': '100%'},
     ),
 
@@ -70,28 +73,28 @@ app.layout = html.Div([
             dcc.Dropdown(
                 id='mineral_type',
                 options=[
-                    {'label': 'Gravel', 'value': 'щебень'},
-                    {'label': 'Limestone', 'value': 'известняк'},
-                    {'label': 'Sandstone', 'value': 'песчаник'}
+                    {'label': 'Gravel', 'value': 'gravel'},
+                    {'label': 'Limestone', 'value': 'limestone'},
+                    {'label': 'Sandstone', 'value': 'sandstone'}
                 ],
-                value='песчаник',
+                value='sandstone',
                 style={'width': '100%'}
             ),
             dcc.Input(
                 id='tonnage',
                 type='number',
                 value=100,
-                placeholder='Volume of extracted mineral in tons',
+                placeholder='Amount of extracted mineral in tons',
                 style={'width': '100%'}
             ),
             dcc.RadioItems(
                 id='work_type',
                 options=[
-                    {'label': 'Exploration works', 'value': 'поиск-розыскные работы'},
-                    {'label': 'Extraction in open-pit mine', 'value': 'добыча полезных ископаемых в карьере'},
-                    {'label': 'Extraction in underground mine', 'value': 'добыча полезных ископаемых в шахте'}
+                    {'label': 'Exploration works', 'value': 'exploration works'},
+                    {'label': 'Extraction in quarry', 'value': 'extraction in quarry'},
+                    {'label': 'Extraction in mine', 'value': 'extraction in mine'}
                 ],
-                value='поиск-розыскные работы',
+                value='exploration works',
                 style={'width': '100%'}
             ),
             dcc.DatePickerRange(
@@ -135,13 +138,13 @@ app.layout = html.Div([
         dcc.Checklist(
             id='equipment',
             options=[
-                {'label': 'Drilling rig', 'value': 'буровой станок'},
-                {'label': 'Excavators', 'value': 'экскаваторы'},
-                {'label': 'Dump trucks', 'value': 'откатанные машины'},
-                {'label': 'Conveyor', 'value': 'конвейер'},
-                {'label': 'Mine hoists', 'value': 'шахтные подъемники'}
+                {'label': 'Drilling rig', 'value': 'drilling rig'},
+                {'label': 'Excavators', 'value': 'excavators'},
+                {'label': 'Haulage vehicles', 'value': 'haulage vehicles'},
+                {'label': 'Conveyor', 'value': 'conveyor'},
+                {'label': 'Mine lifts', 'value': 'mine lifts'}
             ],
-            value=['буровой станок'],
+            value=['drilling rig'],
             style={'width': '100%'}
         )
     ]),
@@ -174,8 +177,8 @@ def update_result(n_clicks, quarry_name, mineral_type, tonnage, extraction_dates
     office_price = float(office_price)
     total_salary, total_office_salary = calculate_office_salary(num_workers, avg_salary, office_price)
     total_cost = extraction_cost(quarry_name, mineral_type, tonnage, extraction_dates, num_workers, work_type, equipment, total_salary, total_office_salary)
-    return f"Cost of the extracted mineral: {total_cost} rub."
+    return f"Extraction cost of the mineral mass: {total_cost} rub."
 
-# Run the server
+# Start the server
 if __name__ == '__main__':
     app.run_server(debug=True)
